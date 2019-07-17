@@ -21,6 +21,12 @@ spec:
             backend:
               serviceName: proxy-public
               servicePort: 80
+          {{- if $.Values.ingress.extraPathSuffix }}
+          - path: {{ $.Values.hub.baseUrl }}{{ $.Values.ingress.extraPathSuffix }}
+            backend:
+              serviceName: proxy-public
+              servicePort: 80
+          {{- end }}
     {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
