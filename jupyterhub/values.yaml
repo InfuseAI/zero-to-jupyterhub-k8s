@@ -224,6 +224,7 @@ singleuser:
     guarantees: {}
   cmd: jupyterhub-singleuser
   defaultUrl:
+  extraPodConfig: {}
 
 
 scheduling:
