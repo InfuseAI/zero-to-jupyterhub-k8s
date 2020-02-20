@@ -2,7 +2,7 @@
 {{- $autoHTTPS := and $HTTPS (eq .Values.proxy.https.type "letsencrypt") .Values.proxy.https.hosts -}}
 {{- if $autoHTTPS -}}
 # This is solely used to provide auto HTTPS with our bundled kube-lego
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: jupyterhub-internal
