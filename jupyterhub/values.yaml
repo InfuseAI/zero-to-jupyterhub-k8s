@@ -71,7 +71,7 @@ hub:
   extraVolumeMounts: []
   image:
     name: jupyterhub/k8s-hub
-    tag: 'set-by-chartpress'
+    tag: '0.10.6'
     pullPolicy: ''
     pullSecrets: []
   resources:
@@ -249,7 +249,7 @@ proxy:
       allowPrivilegeEscalation: false
     image:
       name: jupyterhub/k8s-secret-sync
-      tag: 'set-by-chartpress'
+      tag: '0.10.6'
       pullPolicy: ''
       pullSecrets: []
     resources: {}
@@ -313,7 +313,7 @@ singleuser:
   networkTools:
     image:
       name: jupyterhub/k8s-network-tools
-      tag: 'set-by-chartpress'
+      tag: '0.10.6'
       pullPolicy: ''
       pullSecrets: []
   cloudMetadata:
@@ -366,7 +366,7 @@ singleuser:
       storageAccessModes: [ReadWriteOnce]
   image:
     name: jupyterhub/k8s-singleuser-sample
-    tag: 'set-by-chartpress'
+    tag: '0.10.6'
     pullPolicy: ''
     pullSecrets: []
   startTimeout: 300
@@ -473,7 +473,7 @@ prePuller:
     # image and the configuration below relates to the hook-image-awaiter Job
     image:
       name: jupyterhub/k8s-image-awaiter
-      tag: 'set-by-chartpress'
+      tag: '0.10.6'
       pullPolicy: ''
       pullSecrets: []
     containerSecurityContext:
