@@ -40,6 +40,13 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resourceNames: ["extension-apiserver-authentication"]
+    resources: ["configmaps"]
+    verbs: ["get", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "update"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -52,6 +59,9 @@ subjects:
   - kind: ServiceAccount
     name: user-scheduler
     namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: user-scheduler
+    namespace: kube-system
 roleRef:
   kind: ClusterRole
   name: {{ .Release.Name }}-user-scheduler-complementary
