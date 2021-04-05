@@ -39,7 +39,7 @@ jobs:
           setup_helm
           pip install chartpress yamllint
 
-      - uses: pre-commit/action@v2.0.0
+      - uses: pre-commit/action@v2.0.1
 
       - name: Lint and validate
         run: tools/templates/lint-and-validate.py
