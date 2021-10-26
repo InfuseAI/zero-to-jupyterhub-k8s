@@ -175,7 +175,7 @@ image = get_config("singleuser.image.name")
 if image:
     tag = get_config("singleuser.image.tag")
     if tag:
-        image = "{}:{}".format(image, tag)
+        image = f"{image}:{tag}"
 
     c.KubeSpawner.image = image
 
@@ -224,7 +224,7 @@ if match_node_purpose:
         pass
     else:
         raise ValueError(
-            "Unrecognized value for matchNodePurpose: %r" % match_node_purpose
+            f"Unrecognized value for matchNodePurpose: {match_node_purpose}"
         )
 
 # Combine the common tolerations for user pods with singleuser tolerations
@@ -323,41 +323,59 @@ c.KubeSpawner.volume_mounts.extend(
 )
 
 c.JupyterHub.services = []
+c.JupyterHub.load_roles = []
 
+# jupyterhub-idle-culler's permissions are scoped to what it needs only, see
+# https://github.com/jupyterhub/jupyterhub-idle-culler#permissions.
+#
 if get_config("cull.enabled", False):
+    jupyterhub_idle_culler_role = {
+        "name": "jupyterhub-idle-culler",
+        "scopes": [
+            "list:users",
+            "read:users:activity",
+            "read:servers",
+            "delete:servers",
+            # "admin:users", # dynamically added if --cull-users is passed
+        ],
+        # assign the role to a jupyterhub service, so it gains these permissions
+        "services": ["jupyterhub-idle-culler"],
+    }
+
     cull_cmd = ["python3", "-m", "jupyterhub_idle_culler"]
     base_url = c.JupyterHub.get("base_url", "/")
     cull_cmd.append("--url=http://localhost:8081" + url_path_join(base_url, "hub/api"))
 
     cull_timeout = get_config("cull.timeout")
     if cull_timeout:
-        cull_cmd.append("--timeout=%s" % cull_timeout)
+        cull_cmd.append(f"--timeout={cull_timeout}")
 
     cull_every = get_config("cull.every")
     if cull_every:
-        cull_cmd.append("--cull-every=%s" % cull_every)
+        cull_cmd.append(f"--cull-every={cull_every}")
 
     cull_concurrency = get_config("cull.concurrency")
     if cull_concurrency:
-        cull_cmd.append("--concurrency=%s" % cull_concurrency)
+        cull_cmd.append(f"--concurrency={cull_concurrency}")
 
     if get_config("cull.users"):
         cull_cmd.append("--cull-users")
+        jupyterhub_idle_culler_role["scopes"].append("admin:users")
 
     if get_config("cull.removeNamedServers"):
         cull_cmd.append("--remove-named-servers")
 
     cull_max_age = get_config("cull.maxAge")
     if cull_max_age:
-        cull_cmd.append("--max-age=%s" % cull_max_age)
+        cull_cmd.append(f"--max-age={cull_max_age}")
 
     c.JupyterHub.services.append(
         {
-            "name": "cull-idle",
-            "admin": True,
+            "name": "jupyterhub-idle-culler",
             "command": cull_cmd,
         }
     )
+    c.JupyterHub.load_roles.append(jupyterhub_idle_culler_role)
 
 for key, service in get_config("hub.services", {}).items():
     # c.JupyterHub.services is a list of dicts, but
@@ -371,6 +389,13 @@ for key, service in get_config("hub.services", {}).items():
 
     c.JupyterHub.services.append(service)
 
+for key, role in get_config("hub.loadRoles", {}).items():
+    # c.JupyterHub.load_roles is a list of dicts, but
+    # hub.loadRoles is a dict of dicts to make the config mergable
+    role.setdefault("name", key)
+
+    c.JupyterHub.load_roles.append(role)
+
 
 set_config_if_not_none(c.Spawner, "cmd", "singleuser.cmd")
 set_config_if_not_none(c.Spawner, "default_url", "singleuser.defaultUrl")
@@ -381,6 +406,7 @@ if cloud_metadata.get("blockWithIptables") == True:
     # Use iptables to block access to cloud metadata by default
     network_tools_image_name = get_config("singleuser.networkTools.image.name")
     network_tools_image_tag = get_config("singleuser.networkTools.image.tag")
+    network_tools_resources = get_config("singleuser.networkTools.resources")
     ip_block_container = client.V1Container(
         name="block-cloud-metadata",
         image=f"{network_tools_image_name}:{network_tools_image_tag}",
@@ -398,6 +424,7 @@ if cloud_metadata.get("blockWithIptables") == True:
             run_as_user=0,
             capabilities=client.V1Capabilities(add=["NET_ADMIN"]),
         ),
+        resources=network_tools_resources,
     )
 
     c.KubeSpawner.init_containers.append(ip_block_container)
@@ -442,5 +469,5 @@ for app, cfg in get_config("hub.config", {}).items():
 
 # execute hub.extraConfig entries
 for key, config_py in sorted(get_config("hub.extraConfig", {}).items()):
-    print("Loading extra config: %s" % key)
+    print(f"Loading extra config: {key}")
     exec(config_py)

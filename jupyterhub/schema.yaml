@@ -845,7 +845,7 @@ properties:
             - Anything else you can think of!
 
           Since this is usually a multi-line string, you want to format it using YAML's
-          [| operator](https://yaml.org/spec/1.2/spec.html#id2795688).
+          [| operator](https://yaml.org/spec/1.2.2/#23-scalars).
 
           For example:
 
@@ -870,22 +870,6 @@ properties:
           extra configuration logic.
           ```
 
-      uid:
-        type: [integer, "null"]
-        minimum: 0
-        deprecated: true
-        description: |
-          Deprecated since chart version 0.11.0. Use
-          [`hub.containerSecurityContext`](schema_hub.containerSecurityContext)
-          instead.
-
-          The UID the hub process should be running as.
-
-          Use this only if you are building your own image & know that a user with this uid
-          exists inside the hub container! Advanced feature, handle with care!
-
-          Defaults to 1000, which is the uid of the `jovyan` user that is present in the
-          default hub image.
       fsGid:
         type: [integer, "null"]
         minimum: 0
@@ -1069,13 +1053,6 @@ properties:
             description: |
               JupyterHub does not support running in parallel, due to this we
               default to using a deployment strategy of Recreate.
-      extraConfigMap:
-        type: object
-        additionalProperties: true
-        deprecated: true
-        description: |
-          Deprecated since chart version 0.8. Use [`custom`](schema_custom)
-          instead.
       extraContainers: &extraContainers-spec
         type: array
         description: |
@@ -1098,7 +1075,7 @@ properties:
               const: true
         then:
           description: |
-            This config option is exactly like the k8s native specification of a
+            This config option is like the k8s native specification of a
             container probe, except that it also supports an `enabled` boolean
             flag.
 
@@ -1224,6 +1201,40 @@ properties:
               An alias for api_token provided for backward compatibility by
               the JupyterHub Helm chart that will be transformed to
               api_token.
+      loadRoles:
+        type: object
+        additionalProperties: true
+        description: |
+          This is where you should define JupyterHub roles and apply them to
+          JupyterHub users, groups, and services to grant them additional
+          permissions as defined in JupyterHub's RBAC system.
+
+          Complement this documentation with [JupyterHub's
+          documentation](https://jupyterhub.readthedocs.io/en/latest/rbac/roles.html#defining-roles)
+          about `load_roles`.
+
+          Note that while JupyterHub's native configuration `load_roles` accepts
+          a list of role objects, this Helm chart only accepts a dictionary where
+          each key represents the name of a role and the value is the actual
+          role object.
+
+          ```yaml
+          hub:
+            loadRoles:
+              teacher:
+                description: Access to users' information and group membership
+
+                # this role provides permissions to...
+                scopes: [users, groups]
+
+                # this role will be assigned to...
+                users: [erik]
+                services: [grading-service]
+                groups: [teachers]
+          ```
+
+          When configuring JupyterHub roles via this Helm chart, the `name`
+          field can be omitted as it can be implied by the dictionary key.
       shutdownOnLogout:
         type: [boolean, "null"]
         description: *jupyterhub-native-config-description
@@ -1234,12 +1245,6 @@ properties:
         type: object
         additionalProperties: true
         description: *jupyterhub-native-config-description
-      imagePullSecret: &deprecated-imagePullSecret
-        type: object
-        additionalProperties: true
-        deprecated: true
-        description: |
-          DEPRECATED: Use [`imagePullSecret`](schema_imagePullSecret) instead.
       serviceAccount: &serviceAccount
         type: object
         additionalProperties: false
@@ -1757,21 +1762,6 @@ properties:
               both receive updates from JupyterHub regarding how it should route
               traffic. Due to this we default to using a deployment strategy of
               Recreate instead of RollingUpdate.
-      containerSecurityContext:
-        type: object
-        additionalProperties: true
-        deprecated: true
-        description: |
-          Deprecated since chart version 0.11.0. Use
-          [`proxy.chp.containerSecurityContext`](schema_proxy.chp.containerSecurityContext)
-          instead.
-      networkPolicy:
-        type: object
-        additionalProperties: true
-        deprecated: true
-        description: |
-          Deprecated since chart version 0.11.0. Use
-          [`proxy.chp.networkPolicy`](schema_proxy.chp.networkPolicy) instead.
       secretSync:
         type: object
         additionalProperties: false
@@ -1788,12 +1778,6 @@ properties:
           containerSecurityContext: *containerSecurityContext-spec
           image: *image-spec
           resources: *resources-spec
-      pdb:
-        type: object
-        additionalProperties: true
-        deprecated: true
-        description: |
-          DEPRECATED: Use [`proxy.chp.pdb`](schema_proxy.chp.pdb) instead.
 
   singleuser:
     type: object
@@ -1992,13 +1976,6 @@ properties:
             type: boolean
           ip:
             type: string
-          enabled:
-            type: boolean
-            deprecated: true
-            description: |
-              Deprecated since chart version 0.11.0. Use
-              [`singleuser.cloudMetadata.blockWithIptables`](schema_singleuser.cloudMetadata.blockWithIptables)
-              instead.
 
       cmd:
         type: [array, string, "null"]
@@ -2068,6 +2045,7 @@ properties:
           is set to true.
         properties:
           image: *image-spec
+          resources: *resources-spec
       # FIXME: name mismatch, named service_account in kubespawner
       serviceAccountName:
         type: [string, "null"]
@@ -2173,7 +2151,6 @@ properties:
           sudo rights for some of your users. This can be done by starting up as
           root, enabling it from the container in a startup script, and then
           transitioning to the normal user.
-      imagePullSecret: *deprecated-imagePullSecret
 
   scheduling:
     type: object
@@ -2437,6 +2414,15 @@ properties:
           See [the Kubernetes
           documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
           for more details about annotations.
+      ingressClassName:
+        type: [string, "null"]
+        description: |
+          Maps directly to the Ingress resource's spec.ingressClassName. To
+          configure this, your k8s cluster must have version 1.18+ or above.
+
+          See [the Kubernetes
+          documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)
+          for more details.
       hosts:
         type: array
         description: |
@@ -2672,10 +2658,3 @@ properties:
           A flag that should only be set to true temporarily when experiencing a
           deprecation message that contain censored content that you wish to
           reveal.
-
-  auth:
-    type: object
-    additionalProperties: true
-    deprecated: true
-    description: |
-      DEPRECATED: The Authenticator should be configured using [`hub.config`](schema_hub.config) instead.

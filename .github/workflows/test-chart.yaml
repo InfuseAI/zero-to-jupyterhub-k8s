@@ -1,5 +1,5 @@
 # This is a GitHub workflow defining a set of jobs with a set of steps.
-# ref: https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+# ref: https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions
 #
 name: Test chart
 
@@ -21,9 +21,22 @@ on:
       - "!.github/workflows/test-chart.yaml"
     branches-ignore:
       - "dependabot/**"
+      - "pre-commit-ci-update-config"
   workflow_dispatch:
 
 jobs:
+  lint_shell_scripts:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+
+      - name: Install dependencies
+        run: pip install pre-commit
+
+      - name: Run shellcheck linter
+        run: pre-commit run --all --config .pre-commit-config-shellcheck.yaml
+
   lint_and_validate_rendered_templates:
     runs-on: ubuntu-20.04
     steps:
@@ -34,10 +47,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install chartpress yamllint
-
-      - uses: pre-commit/action@v2.0.3
-        with:
-          extra_args: --config .pre-commit-config-shellcheck.yaml
 
       - name: Lint and validate
         run: tools/templates/lint-and-validate.py
@@ -115,9 +124,11 @@ jobs:
         # k3s-version: https://github.com/rancher/k3s/tags
         # k3s-channel: https://update.k3s.io/v1-release/channels
         include:
-          - k3s-channel: v1.21
+          - k3s-channel: v1.22
             test: install
             debuggable: debuggable
+          - k3s-channel: v1.21
+            test: install
           - k3s-channel: v1.20
             test: install
           - k3s-channel: v1.19
@@ -134,6 +145,10 @@ jobs:
               --set proxy.secretToken=aaaa1111
               --set hub.cookieSecret=bbbb2222
               --set hub.config.CryptKeeper.keys[0]=cccc3333
+            # ingress.ingressClassName requires k8s 1.18 and above, don't
+            # validate setting it against the k8s api-server on k8s 1.17.
+            helm-template-validate-extra-args: >-
+              --set ingress.ingressClassName=""
             create-k8s-test-resources: true
 
           # We run two upgrade tests where we first install an already released
@@ -147,6 +162,7 @@ jobs:
           #
           # The upgrade-from input should match the version information from
           # https://jupyterhub.github.io/helm-chart/info.json
+          #
           - k3s-channel: v1.19
             test: upgrade
             upgrade-from: stable
@@ -154,12 +170,22 @@ jobs:
               --set proxy.secretToken=aaaa1111
               --set hub.cookieSecret=bbbb2222
               --set hub.config.CryptKeeper.keys[0]=cccc3333
+              --set hub.db.type=sqlite-pvc
+              --set singleuser.storage.type=dynamic
+            local-chart-extra-args: >-
+              --set hub.db.type=sqlite-pvc
+              --set singleuser.storage.type=dynamic
             create-k8s-test-resources: true
           - k3s-channel: v1.19
             test: upgrade
             upgrade-from: dev
             upgrade-from-extra-args: >-
               --set proxy.secretToken=aaaa1111
+              --set hub.db.type=sqlite-pvc
+              --set singleuser.storage.type=dynamic
+            local-chart-extra-args: >-
+              --set hub.db.type=sqlite-pvc
+              --set singleuser.storage.type=dynamic
 
     steps:
       - uses: actions/checkout@v2
@@ -207,7 +233,7 @@ jobs:
       # dedicated lint-and-validate-values.yaml config.
       - name: "Helm template --validate (with lint and validate config)"
         run: |
-          helm template --validate jupyterhub ./jupyterhub --values tools/templates/lint-and-validate-values.yaml
+          helm template --validate jupyterhub ./jupyterhub --values tools/templates/lint-and-validate-values.yaml ${{ matrix.helm-template-validate-extra-args }}
 
       # It is only needed at this point forward as this is when we install
       # jupyterhub and the autohttps pod is about to start, so for CI
@@ -240,14 +266,6 @@ jobs:
         run: |
           helm plugin install https://github.com/databus23/helm-diff
 
-      # ref: https://github.com/mikefarah/yq
-      - name: "(Upgrade) Install yq"
-        if: matrix.test == 'upgrade'
-        run: |
-          VERSION=v4.4.1
-          wget https://github.com/mikefarah/yq/releases/download/$VERSION/yq_linux_amd64.tar.gz -qO - | tar xz
-          sudo mv yq_linux_amd64 /usr/bin/yq
-
       - name: "(Upgrade) Helm diff ${{ matrix.upgrade-from }} chart with local chart"
         if: matrix.test == 'upgrade'
         run: |
@@ -266,6 +284,8 @@ jobs:
           echo
 
           helm diff upgrade --install jupyterhub ./jupyterhub --values dev-config.yaml \
+              --values dev-config-local-chart-extra-config.yaml \
+              ${{ matrix.local-chart-extra-args }} \
               --show-secrets \
               --context=3 \
               --post-renderer=ci/string-replacer.sh
@@ -291,7 +311,10 @@ jobs:
 
       - name: "Install local chart"
         run: |
-          helm upgrade --install jupyterhub ./jupyterhub --values dev-config.yaml ${{ matrix.local-chart-extra-args }}
+          helm upgrade --install jupyterhub ./jupyterhub \
+              --values dev-config.yaml \
+              --values dev-config-local-chart-extra-config.yaml \
+              ${{ matrix.local-chart-extra-args }}
 
       - name: "Await local chart"
         uses: jupyterhub/action-k8s-await-workloads@v1
