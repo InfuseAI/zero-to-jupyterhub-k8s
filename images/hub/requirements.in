@@ -5,10 +5,10 @@
 #
 
 # JupyterHub itself
-jupyterhub==2.0.0b3
+jupyterhub==2.0.0rc3
 
 ## Authenticators
-jupyterhub-firstuseauthenticator
+jupyterhub-firstuseauthenticator>=1
 jupyterhub-hmacauthenticator
 jupyterhub-ldapauthenticator
 jupyterhub-ltiauthenticator

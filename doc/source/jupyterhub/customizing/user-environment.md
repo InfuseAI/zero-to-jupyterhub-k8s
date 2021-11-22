@@ -138,9 +138,9 @@ That way, your choice will be preserved across upgrades.
 
 ## Use JupyterLab by default
 
-:::{note}
+```{note}
 This is the default in JupyterHub 2.0 and Helm chart 2.0.
-:::
+```
 
 You can choose JupyterLab as the default UI with the following config in your {term}`config.yaml`:
 
@@ -148,7 +148,7 @@ You can choose JupyterLab as the default UI with the following config in your {t
 singleuser:
   defaultUrl: "/lab"
   extraEnv:
-    JUPYERHUB_SINGLEUSER_APP: "jupyter_server.serverapp.ServerApp"
+    JUPYTERHUB_SINGLEUSER_APP: "jupyter_server.serverapp.ServerApp"
 ```
 
 You can also make JupyterLab the default UI _without_ upgrading to the newer server implementation.
@@ -158,10 +158,10 @@ This may help users who need to stick to the legacy UI with extensions that may 
 singleuser:
   defaultUrl: "/lab"
   extraEnv:
-    JUPYERHUB_SINGLEUSER_APP: "notebook.notebookapp.NotebookApp"
+    JUPYTERHUB_SINGLEUSER_APP: "notebook.notebookapp.NotebookApp"
 ```
 
-````{note}
+```{note}
 You need the `jupyterlab` package (installable via `pip` or `conda`)
 for this to work. All images in the [jupyter/docker-stacks repository](https://github.com/jupyter/docker-stacks/) come pre-installed with it.
 ```
@@ -170,9 +170,9 @@ for this to work. All images in the [jupyter/docker-stacks repository](https://g
 
 ### Use classic notebook by default
 
-:::{note}
+```{note}
 This is the default in JupyterHub 1.x and helm chart 1.x.
-:::
+```
 
 If you aren't ready to upgrade to JupyterLab,
 especially for those who depend on custom notebook extensions without an equivalent in JupyterLab,
@@ -183,7 +183,7 @@ you can always stick with the legacy notebook server (`jupyter notebook`):
 singleuser:
   extraEnv:
     JUPYTERHUB_SINGLEUSER_APP: "notebook.notebookapp.NotebookApp"
-````
+```
 
 This will start the exact same server and UI as before.
 
@@ -217,7 +217,7 @@ To install such an extension:
 singleuser:
   defaultUrl: /retro/
   extraEnv:
-    JUPYTERHUB_SINGLEUSER_APP: jupyter_server.serverapp.ServerApp
+    JUPYTERHUB_SINGLEUSER_APP: "jupyter_server.serverapp.ServerApp"
 ```
 
 (custom-docker-image)=
@@ -536,8 +536,8 @@ singleuser:
   cmd: jupyterhub-singleuser
 ```
 
-:::{versionchanged} 2.0
+```{versionchanged} 2.0
 Prior to 2.0, the default behavior of zero-to-jupyterhub was to launch `jupyterhub-singleuser` explicitly,
 ignoring what was in the image.
 The default command is now whatever the image runs by default.
-:::
+```
