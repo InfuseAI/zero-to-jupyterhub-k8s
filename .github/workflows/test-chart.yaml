@@ -28,8 +28,8 @@ jobs:
   lint_shell_scripts:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
 
       - name: Install dependencies
         run: pip install pre-commit
@@ -40,8 +40,8 @@ jobs:
   lint_and_validate_rendered_templates:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.8"
 
@@ -73,8 +73,8 @@ jobs:
           - helm-version: v3.5.0 # minimal required version
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.8"
 
@@ -126,7 +126,6 @@ jobs:
         include:
           - k3s-channel: v1.23
             test: install
-            debuggable: debuggable
           - k3s-channel: v1.22
             test: install
           - k3s-channel: v1.21
@@ -190,7 +189,7 @@ jobs:
               --set singleuser.storage.type=dynamic
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # chartpress requires git history to set chart version and image tags
           # correctly
@@ -207,9 +206,9 @@ jobs:
           traefik-enabled: false
           docker-enabled: true
 
-      # NOTE: actions/setup-python@v2 make use of a cache within the GitHub base
+      # NOTE: actions/setup-python@v3 make use of a cache within the GitHub base
       #       environment and setup in a fraction of a second.
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: "3.8"
 
@@ -342,11 +341,3 @@ jobs:
         if: always()
         with:
           important-workloads: deploy/hub deploy/proxy
-
-      # WARNING: Only allow this for pull_request runs that doesn't contain
-      #          sensitive information.
-      #
-      # action reference: https://github.com/mxschmitt/action-tmate@v3
-      - name: To enter a SSH debugging session, read these logs
-        if: failure() && github.event_name == 'pull_request' && matrix.debuggable == 'debuggable'
-        uses: mxschmitt/action-tmate@v3
