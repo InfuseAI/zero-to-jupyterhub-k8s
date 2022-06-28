@@ -14,7 +14,8 @@ The JupyterHub Helm chart relies on many dependent projects, and when we make a 
 
 ### Dependent Python packages
 
-Update JupyterHub's Python dependencies in `images/hub/requirements.txt` by going to the folder and running `./dependencies freeze --upgrade`.
+Update JupyterHub's Python dependencies in `images/hub/requirements.txt` by
+following the instructions in `images/hub/README.md`.
 
 Also consider nudging dependent projects in the JupyterHub GitHub organization for a release.
 
@@ -47,7 +48,7 @@ Also the images we build are based on some image specified in the `FROM` stateme
 
 ## Pre-release iteration
 
-- Update `CHANGELOG.md`
+- Update `docs/source/changelog.md`
 
   - [ ] Generate a list of PRs using [executablebooks/github-activity](https://github.com/executablebooks/github-activity)
     ```bash
@@ -73,7 +74,7 @@ Also the images we build are based on some image specified in the `FROM` stateme
 
 ## Final release
 
-- Update `CHANGELOG.md`
+- Update `docs/source/changelog.md`
 
   - [ ] Generate a list of merged PRs and a list of contributors and update the changelog.
     ```bash

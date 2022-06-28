@@ -1,5 +1,5 @@
 # This is a GitHub workflow defining a set of jobs with a set of steps.
-# ref: https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions
+# ref: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
 #
 name: Test docs
 
@@ -19,6 +19,8 @@ on:
     branches-ignore:
       - "dependabot/**"
       - "pre-commit-ci-update-config"
+      - "update-*"
+      - "vuln-scan-*"
   workflow_dispatch:
 
 jobs:
@@ -30,9 +32,9 @@ jobs:
           # chartpress, used by docs/conf.py, requires git history to set
           # chart version and image tags correctly
           fetch-depth: 0
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: "3.8"
+          python-version: "3.9"
 
       - name: Install deps
         run: pip install -r docs/requirements.txt

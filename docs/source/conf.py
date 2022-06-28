@@ -23,16 +23,15 @@ import subprocess
 
 import yaml
 
-
 # -- Sphinx setup function ---------------------------------------------------
-# ref: http://www.sphinx-doc.org/en/latest/extdev/tutorial.html#the-setup-function
+# ref: https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx-core-events
 
 
 def setup(app):
     app.add_css_file("custom.css")
 
 
-# -- Referencable variables --------------------------------------------------
+# -- Referenceable variables --------------------------------------------------
 
 
 def _get_git_ref_from_chartpress_based_version(version):
@@ -102,6 +101,7 @@ extensions = [
     "sphinx_copybutton",
     "myst_parser",
     "sphinxext.rediraffe",
+    "sphinxext.opengraph",
 ]
 
 # List of patterns, relative to source directory, that match files and
@@ -172,6 +172,10 @@ rediraffe_redirects = {
     "advanced": "administrator/advanced",
 }
 
+# opengraph configuration
+# ogp_site_url/prefix is set automatically by RTD
+ogp_image = "_static/logo.png"
+ogp_use_first_image = True
 
 # -- Generate the Helm chart configuration reference from a schema file ------
 
@@ -220,10 +224,13 @@ with open("resources/reference.md", "w") as f:
 
 
 # -- Options for linkcheck builder -------------------------------------------
-# ref: http://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-the-linkcheck-builder
+# ref: https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-the-linkcheck-builder
 linkcheck_ignore = [
     r"(.*)github\.com(.*)#",  # javascript based anchors
     r"(.*)/#%21(.*)/(.*)",  # /#!forum/jupyter - encoded anchor edge case
+    r"https://github.com/[^/]*$",  # too many github usernames / searches in changelog
+    "https://github.com/jupyterhub/zero-to-jupyterhub-k8s/pull/",  # too many PRs in changelog
+    "https://github.com/jupyterhub/zero-to-jupyterhub-k8s/compare/",  # too many comparisons in changelog
     "https://your-domain.com",  # example
     "https://your-domain-name.com",  # example
     "https://kubernetes.io/docs/tutorials/kubernetes-basics/",  # works
@@ -239,7 +246,7 @@ linkcheck_anchors_ignore = [
 
 
 # -- Options for HTML output -------------------------------------------------
-# ref: http://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+# ref: https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.

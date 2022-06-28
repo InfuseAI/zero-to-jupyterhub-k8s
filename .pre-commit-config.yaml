@@ -21,18 +21,29 @@
 repos:
   # Autoformat: Python code, syntax patterns are modernized
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.31.1
+    rev: v2.34.0
     hooks:
       - id: pyupgrade
         args:
-          - --py36-plus
+          - --py38-plus
 
   # Autoformat: Python code
   - repo: https://github.com/psf/black
-    rev: 22.1.0
+    rev: 22.3.0
     hooks:
       - id: black
-        args: [--target-version=py36]
+        args:
+          - --target-version=py38
+          - --target-version=py39
+          - --target-version=py310
+
+  # Autoformat: Python code
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args:
+          - --profile=black
 
   # Autoformat: Bash scripts
   - repo: https://github.com/lovesegfault/beautysh
@@ -42,7 +53,7 @@ repos:
 
   # Autoformat: markdown, yaml (but not helm templates)
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.6.0
+    rev: v2.7.1
     hooks:
       - id: prettier
 

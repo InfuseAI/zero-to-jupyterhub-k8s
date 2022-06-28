@@ -1,4 +1,4 @@
-# dependabot.yml reference: https://docs.github.com/en/code-security/supply-chain-security/keeping-your-dependencies-updated-automatically/configuration-options-for-dependency-updates
+# dependabot.yml reference: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
 # Notes:
 # - Status and logs from dependabot are provided at
@@ -6,10 +6,7 @@
 # - YAML anchors are not supported here or in GitHub Workflows.
 # - versioning-strategy: lockfile-only must not be used if you only have a plain
 #   requirements.txt like we do in images/singleuser-sample.
-# - We explicitly set the "maintenance" label to help our changelog generator
-#   tool github-activity to categorize PRs.
 #
-
 version: 2
 updates:
   # Maintain Python dependencies for the jupyterhub/k8s-hub image
@@ -17,11 +14,10 @@ updates:
     directory: "/images/hub"
     schedule:
       interval: daily
-      time: "00:00"
+      time: "05:00"
       timezone: "Etc/UTC"
     versioning-strategy: lockfile-only
     labels:
-      - maintenance
       - dependencies
 
   # Maintain Python dependencies for the jupyterhub/k8s-singleuser-sample image
@@ -31,17 +27,21 @@ updates:
       interval: daily
       time: "05:00"
       timezone: "Etc/UTC"
+    # ignore is applied as we need to bump this version in multiple locations,
+    # and not just in the singleuser-sample image, for which we have a dedicated
+    # job in the watch-dependencies.yaml workflow file.
+    #
+    ignore:
+      - dependency-name: jupyterhub
     labels:
-      - maintenance
       - dependencies
 
   # Maintain dependencies in our GitHub Workflows
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: github-actions
     directory: "/" # This should be / rather than .github/workflows
     schedule:
-      interval: daily
+      interval: weekly
       time: "05:00"
       timezone: "Etc/UTC"
     labels:
-      - maintenance
       - dependencies

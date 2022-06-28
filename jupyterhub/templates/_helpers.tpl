@@ -12,7 +12,7 @@
 
   When you ask a helper to render its content, one often forward the current
   scope to the helper in order to allow it to access .Release.Name,
-  .Values.rbac.enabled and similar values.
+  .Values.rbac.create and similar values.
 
   #### Example - Passing the current scope
   {{ include "jupyterhub.commonLabels" . }}
@@ -392,7 +392,7 @@ limits:
       https://github.com/jupyterhub/chartpress#examples-chart-versions-and-image-tags.
 
     - The regexReplaceAll function is a sprig library function, see
-      http://masterminds.github.io/sprig/strings.html.
+      https://masterminds.github.io/sprig/strings.html.
 
     - The regular expression is in golang syntax, but \d had to become \\d for
       example.

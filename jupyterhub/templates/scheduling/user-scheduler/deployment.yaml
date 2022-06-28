@@ -16,9 +16,12 @@ spec:
         {{- include "jupyterhub.matchLabels" . | nindent 8 }}
       annotations:
         checksum/config-map: {{ include (print $.Template.BasePath "/scheduling/user-scheduler/configmap.yaml") . | sha256sum }}
+        {{- with .Values.scheduling.userScheduler.annotations }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
     spec:
-      {{- if .Values.rbac.enabled }}
-      serviceAccountName: {{ include "jupyterhub.user-scheduler-deploy.fullname" . }}
+      {{ with include "jupyterhub.user-scheduler-serviceaccount.fullname" . }}
+      serviceAccountName: {{ . }}
       {{- end }}
       {{- if .Values.scheduling.podPriority.enabled }}
       priorityClassName: {{ include "jupyterhub.priority.fullname" . }}

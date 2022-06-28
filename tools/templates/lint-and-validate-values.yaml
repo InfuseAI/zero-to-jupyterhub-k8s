@@ -174,10 +174,19 @@ hub:
     minAvailable: null
   networkPolicy:
     enabled: true
+    egressAllowRules:
+      cloudMetadataServer: true
+      dnsPortsPrivateIPs: true
+      nonPrivateIPs: true
+      privateIPs: false
     egress:
       - to:
-          - ipBlock:
-              cidr: 0.0.0.0/0
+          - podSelector:
+              matchLabels:
+                app: my-k8s-local-service
+        ports:
+          - protocol: TCP
+            port: 5978
     interNamespaceAccessLabels: ignore
     allowedIngressPorts: []
   allowNamedServers: true
@@ -189,13 +198,15 @@ hub:
       value: mock-taint-value-hub
       effect: NoSchedule
   serviceAccount: &serviceAccount
+    create: true
+    name: mock-serviceaccount-name
     annotations: *annotations
   extraPodSpec: &extraPodSpec
     hostNetwork: true
     dnsPolicy: ClusterFirstWithHostNet
 
 rbac:
-  enabled: true
+  create: true
 
 proxy:
   service:
@@ -233,6 +244,11 @@ proxy:
         effect: NoSchedule
     networkPolicy:
       enabled: true
+      egressAllowRules:
+        cloudMetadataServer: false
+        dnsPortsPrivateIPs: false
+        nonPrivateIPs: false
+        privateIPs: true
       egress:
         - to:
             - ipBlock:
@@ -257,6 +273,11 @@ proxy:
         effect: NoSchedule
     networkPolicy:
       enabled: true
+      egressAllowRules:
+        cloudMetadataServer: false
+        dnsPortsPrivateIPs: false
+        nonPrivateIPs: true
+        privateIPs: true
       egress:
         - to:
             - ipBlock:
@@ -377,6 +398,11 @@ singleuser:
     ip: 169.254.169.254
   networkPolicy:
     enabled: true
+    egressAllowRules:
+      cloudMetadataServer: true
+      dnsPortsPrivateIPs: true
+      nonPrivateIPs: false
+      privateIPs: false
     egress:
       - to:
           - ipBlock:
@@ -397,6 +423,7 @@ singleuser:
     - name: mock-extra-container-name
       image: mock-extra-container-image
       imagePullPolicy: IfNotPresent
+  allowPrivilegeEscalation: false
   uid: 1000
   fsGid: 100
   serviceAccountName:

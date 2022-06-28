@@ -40,7 +40,6 @@ hub:
   baseUrl: /
   cookieSecret:
   initContainers: []
-  fsGid: 1000
   nodeSelector: {}
   tolerations: []
   concurrentSpawnLimit: 64
@@ -83,6 +82,8 @@ hub:
     pullPolicy:
     pullSecrets: []
   resources: {}
+  podSecurityContext:
+    fsGroup: 1000
   containerSecurityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -97,16 +98,12 @@ hub:
   networkPolicy:
     enabled: true
     ingress: []
-    ## egress for JupyterHub already includes Kubernetes internal DNS and
-    ## access to the proxy, but can be restricted further, but ensure to allow
-    ## access to the Kubernetes API server that couldn't be pinned ahead of
-    ## time.
-    ##
-    ## ref: https://stackoverflow.com/a/59016417/2220152
-    egress:
-      - to:
-          - ipBlock:
-              cidr: 0.0.0.0/0
+    egress: []
+    egressAllowRules:
+      cloudMetadataServer: true
+      dnsPortsPrivateIPs: true
+      nonPrivateIPs: true
+      privateIPs: true
     interNamespaceAccessLabels: ignore
     allowedIngressPorts: []
   allowNamedServers: false
@@ -136,11 +133,13 @@ hub:
     timeoutSeconds: 1
   existingSecret:
   serviceAccount:
+    create: true
+    name:
     annotations: {}
   extraPodSpec: {}
 
 rbac:
-  enabled: true
+  create: true
 
 # proxy relates to the proxy pod, the proxy-public service, and the autohttps
 # pod and proxy-http service.
@@ -194,7 +193,10 @@ proxy:
       allowPrivilegeEscalation: false
     image:
       name: jupyterhub/configurable-http-proxy
-      tag: 4.5.1 # https://github.com/jupyterhub/configurable-http-proxy/releases
+      # tag is automatically bumped to new patch versions by the
+      # watch-dependencies.yaml workflow.
+      #
+      tag: "4.5.1" # https://github.com/jupyterhub/configurable-http-proxy/releases
       pullPolicy:
       pullSecrets: []
     extraCommandLineFlags: []
@@ -219,10 +221,12 @@ proxy:
     networkPolicy:
       enabled: true
       ingress: []
-      egress:
-        - to:
-            - ipBlock:
-                cidr: 0.0.0.0/0
+      egress: []
+      egressAllowRules:
+        cloudMetadataServer: true
+        dnsPortsPrivateIPs: true
+        nonPrivateIPs: true
+        privateIPs: true
       interNamespaceAccessLabels: ignore
       allowedIngressPorts: [http, https]
     pdb:
@@ -239,7 +243,10 @@ proxy:
       allowPrivilegeEscalation: false
     image:
       name: traefik
-      tag: v2.6.1 # ref: https://hub.docker.com/_/traefik?tab=tags
+      # tag is automatically bumped to new patch versions by the
+      # watch-dependencies.yaml workflow.
+      #
+      tag: "v2.7.1" # ref: https://hub.docker.com/_/traefik?tab=tags
       pullPolicy:
       pullSecrets: []
     hsts:
@@ -248,6 +255,7 @@ proxy:
       maxAge: 15724800 # About 6 months
     resources: {}
     labels: {}
+    extraInitContainers: []
     extraEnv: {}
     extraVolumes: []
     extraVolumeMounts: []
@@ -259,10 +267,12 @@ proxy:
     networkPolicy:
       enabled: true
       ingress: []
-      egress:
-        - to:
-            - ipBlock:
-                cidr: 0.0.0.0/0
+      egress: []
+      egressAllowRules:
+        cloudMetadataServer: true
+        dnsPortsPrivateIPs: true
+        nonPrivateIPs: true
+        privateIPs: true
       interNamespaceAccessLabels: ignore
       allowedIngressPorts: [http, https]
     pdb:
@@ -270,6 +280,8 @@ proxy:
       maxUnavailable:
       minAvailable: 1
     serviceAccount:
+      create: true
+      name:
       annotations: {}
     extraPodSpec: {}
   secretSync:
@@ -331,18 +343,12 @@ singleuser:
   networkPolicy:
     enabled: true
     ingress: []
-    egress:
-      # Required egress to communicate with the hub and DNS servers will be
-      # augmented to these egress rules.
-      #
-      # This default rule explicitly allows all outbound traffic from singleuser
-      # pods, except to a typical IP used to return metadata that can be used by
-      # someone with malicious intent.
-      - to:
-          - ipBlock:
-              cidr: 0.0.0.0/0
-              except:
-                - 169.254.169.254/32
+    egress: []
+    egressAllowRules:
+      cloudMetadataServer: false
+      dnsPortsPrivateIPs: true
+      nonPrivateIPs: true
+      privateIPs: false
     interNamespaceAccessLabels: ignore
     allowedIngressPorts: []
   events: true
@@ -354,6 +360,7 @@ singleuser:
   lifecycleHooks: {}
   initContainers: []
   extraContainers: []
+  allowPrivilegeEscalation: false
   uid: 1000
   fsGid: 100
   serviceAccountName:
@@ -489,36 +496,47 @@ scheduling:
       #              is a good sign kube-scheduler is ready to schedule pods.
       #
       name: k8s.gcr.io/kube-scheduler
-      tag: v1.23.4 # ref: https://github.com/kubernetes/website/blob/main/content/en/releases/patch-releases.md
+      # tag is automatically bumped to new patch versions by the
+      # watch-dependencies.yaml workflow. The minor version is pinned in the
+      # workflow, and should be updated there if a minor version bump is done
+      # here.
+      #
+      tag: "v1.23.8" # ref: https://github.com/kubernetes/website/blob/main/content/en/releases/patch-releases.md
       pullPolicy:
       pullSecrets: []
     nodeSelector: {}
     tolerations: []
+    annotations: {}
     pdb:
       enabled: true
       maxUnavailable: 1
       minAvailable:
     resources: {}
     serviceAccount:
+      create: true
+      name:
       annotations: {}
     extraPodSpec: {}
   podPriority:
     enabled: false
     globalDefault: false
     defaultPriority: 0
+    imagePullerPriority: -5
     userPlaceholderPriority: -10
   userPlaceholder:
     enabled: true
     image:
       name: k8s.gcr.io/pause
-      # tag's can be updated by inspecting the output of the command:
-      # gcloud container images list-tags k8s.gcr.io/pause --sort-by=~tags
+      # tag is automatically bumped to new patch versions by the
+      # watch-dependencies.yaml workflow.
       #
       # If you update this, also update prePuller.pause.image.tag
-      tag: "3.6"
+      #
+      tag: "3.7"
       pullPolicy:
       pullSecrets: []
     replicas: 0
+    annotations: {}
     containerSecurityContext:
       runAsUser: 65534 # nobody user
       runAsGroup: 65534 # nobody group
@@ -577,6 +595,8 @@ prePuller:
     tolerations: []
     resources: {}
     serviceAccount:
+      create: true
+      name:
       annotations: {}
   continuous:
     enabled: true
@@ -589,11 +609,12 @@ prePuller:
       allowPrivilegeEscalation: false
     image:
       name: k8s.gcr.io/pause
-      # tag's can be updated by inspecting the output of the command:
-      # gcloud container images list-tags k8s.gcr.io/pause --sort-by=~tags
+      # tag is automatically bumped to new patch versions by the
+      # watch-dependencies.yaml workflow.
       #
       # If you update this, also update scheduling.userPlaceholder.image.tag
-      tag: "3.6"
+      #
+      tag: "3.7"
       pullPolicy:
       pullSecrets: []
 
@@ -616,6 +637,7 @@ ingress:
 cull:
   enabled: true
   users: false # --cull-users
+  adminUsers: true # --cull-admin-users
   removeNamedServers: false # --remove-named-servers
   timeout: 3600 # --timeout
   every: 600 # --cull-every

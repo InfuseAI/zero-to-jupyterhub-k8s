@@ -110,18 +110,6 @@
 {{- end }}
 
 
-{{- if eq .Values.proxy.https.enabled false }}
-{{- if or (not (eq .Values.proxy.https.type "letsencrypt")) (not (eq (.Values.proxy.https.letsencrypt.contactEmail | default "") "")) }}
-#################################################################################
-######   WARNING: proxy.https.enabled is set to false by default since      #####
-######            version 0.10.0. It is now set to false but proxy.https    #####
-######            has been modified indicating you may want it enabled.     #####
-#################################################################################
-{{- println }}
-{{- end }}
-{{- end }}
-
-
 
 
 
@@ -148,6 +136,16 @@
   {{- $breaking = print $breaking "\n\nCHANGED: singleuser.cloudMetadata.enabled must as of 1.0.0 be configured using singleuser.cloudMetadata.blockWithIptables with the opposite value." }}
   {{- end }}
 */}}
+
+
+{{- if hasKey .Values.rbac "enabled" }}
+{{- $breaking = print $breaking "\n\nCHANGED: rbac.enabled must as of version 2.0.0 be configured via rbac.create and <hub|proxy.traefik|scheduling.userScheduler|prePuller.hook>.serviceAccount.create." }}
+{{- end }}
+
+
+{{- if hasKey .Values.hub "fsGid" }}
+{{- $breaking = print $breaking "\n\nCHANGED: hub.fsGid must as of version 2.0.0 be configured via hub.podSecurityContext.fsGroup." }}
+{{- end }}
 
 
 {{- if $breaking }}
