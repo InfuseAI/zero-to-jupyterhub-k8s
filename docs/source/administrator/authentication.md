@@ -13,8 +13,10 @@ Before configuring this, you should have [setup HTTPS](https).
 
 ### Authenticator classes
 
-JupyterHub by default ships with only one source of authentication:
-PAM, the underlying unix authentication of the host system.
+Z2JH defaults to a [DummyAuthenticator](https://jupyterhub.readthedocs.io/en/stable/api/auth.html#jupyterhub.auth.DummyAuthenticator)
+that allows anyone to login with any username and password.
+This should only be used for testing purposes.
+
 To use other sources of authentication, choose _one_ [_authenticator
 class_](https://jupyterhub.readthedocs.io/en/stable/reference/authenticators.html) to use.
 Several such classes are already available in the hub image through [installed
@@ -175,7 +177,7 @@ hub:
       allowed_organizations:
         - my-github-organization
       scope:
-        - read:user
+        - read:org
 ```
 
 If you would like to restrict access to a specific team within a GitHub organization, use
@@ -192,11 +194,11 @@ hub:
 ```
 
 ```{admonition} About the choice of scope
-The narrower scope `read:user` is sufficient for a configuration of `allowed_organizations` to function if you both list only entire organizations rather than specific teams, and if the users [make their organization membership public](https://docs.github.com/en/github/setting-up-and-managing-your-github-user-account/managing-your-membership-in-organizations/publicizing-or-hiding-organization-membership).
+The narrower scope `read:user` is sufficient for a configuration of `allowed_organizations` to function if you both list only entire organizations rather than specific teams, and if the users [make their organization membership public](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-your-membership-in-organizations/publicizing-or-hiding-organization-membership).
 
-The broader scope `read:org` doesn't have the limitations of `read:user`, but will require a one-off approval by the admins of the GitHub organizations' listed in `allowed_organizations`. This kind of approval can be requested by organization users [as documented on GitHub](https://docs.github.com/en/github/setting-up-and-managing-your-github-user-account/managing-your-membership-in-organizations/requesting-organization-approval-for-oauth-apps).
+The broader scope `read:org` doesn't have the limitations of `read:user`, but will require a one-off approval by the admins of the GitHub organizations' listed in `allowed_organizations`. This kind of approval can be requested by organization users [as documented on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-your-membership-in-organizations/requesting-organization-approval-for-oauth-apps).
 
-For details about GitHub scopes, see [GitHub's documentation](https://docs.github.com/en/developers/apps/scopes-for-oauth-apps).
+For details about GitHub scopes, see [GitHub's documentation](https://docs.github.com/en/developers/apps/building-oauth-apps/scopes-for-oauth-apps).
 ```
 
 #### Google
@@ -376,7 +378,7 @@ hub:
 [KeyCloak](https://www.keycloak.org) is an open source based provider of
 identity management that you can host yourself. Below is an example on how you
 can configure the GenericOAuthenticator class to authenticate against a KeyCloak
-server.
+server (version 17 or later).
 
 To configure an OpenID Connect client, see [KeyCloak's own
 documentation](https://www.keycloak.org/docs/latest/server_admin/index.html#_oidc_clients).
@@ -388,9 +390,9 @@ hub:
       client_id: your-client-id
       client_secret: your-client-secret
       oauth_callback_url: https://your-jupyterhub-domain/hub/oauth_callback
-      authorize_url: https://${host}/auth/realms/${realm}/protocol/openid-connect/auth
-      token_url: https://${host}/auth/realms/${realm}/protocol/openid-connect/token
-      userdata_url: https://${host}/auth/realms/${realm}/protocol/openid-connect/userinfo
+      authorize_url: https://${host}/realms/${realm}/protocol/openid-connect/auth
+      token_url: https://${host}/realms/${realm}/protocol/openid-connect/token
+      userdata_url: https://${host}/realms/${realm}/protocol/openid-connect/userinfo
       login_service: keycloak
       username_key: preferred_username
       userdata_params:

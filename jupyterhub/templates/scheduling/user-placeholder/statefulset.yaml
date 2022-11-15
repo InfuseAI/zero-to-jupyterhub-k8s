@@ -16,6 +16,9 @@ metadata:
     {{- include "jupyterhub.labels" . | nindent 4 }}
 spec:
   podManagementPolicy: Parallel
+  {{- if typeIs "int" .Values.scheduling.userPlaceholder.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.scheduling.userPlaceholder.revisionHistoryLimit }}
+  {{- end }}
   replicas: {{ .Values.scheduling.userPlaceholder.replicas }}
   selector:
     matchLabels:
@@ -30,6 +33,9 @@ spec:
       labels:
         {{- /* Changes here will cause the Deployment to restart the pods. */}}
         {{- include "jupyterhub.matchLabels" . | nindent 8 }}
+        {{- with .Values.scheduling.userPlaceholder.labels }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
     spec:
       {{- if .Values.scheduling.podPriority.enabled }}
       priorityClassName: {{ include "jupyterhub.user-placeholder-priority.fullname" . }}

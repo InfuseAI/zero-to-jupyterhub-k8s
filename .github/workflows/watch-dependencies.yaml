@@ -4,9 +4,9 @@
 # - Watch multiple images tags referenced in values.yaml to match the latest
 #   image tag.
 #
-# - Watch the jupyterhub pinning in images/hub/requirements.in to match the
+# - Watch the jupyterhub pinning in images/*/requirements.in to match the
 #   latest jupyterhub version available on PyPI, and if doing this, also
-#   refreeze images/hub/requirements.txt.
+#   refreeze images/*/requirements.txt.
 #
 # About environment: watch-dependencies
 #
@@ -20,9 +20,7 @@ name: Watch dependencies
 on:
   push:
     paths:
-      - "images/hub/Dockerfile"
-      - "images/hub/requirements.in"
-      - "images/hub/requirements.txt"
+      - "images/*/requirements.in"
       - ".github/workflows/watch-dependencies.yaml"
     branches: ["main"]
   schedule:
@@ -67,14 +65,14 @@ jobs:
           # values.yaml about bumping its version.
           #
           - name: kube-scheduler
-            registry: k8s.gcr.io
+            registry: registry.k8s.io
             repository: kube-scheduler
             values_path: scheduling.userScheduler.image.tag
-            version_startswith: "v1.23"
+            version_startswith: "v1.25"
             version_patch_regexp_group_suffix: ""
 
           - name: pause
-            registry: k8s.gcr.io
+            registry: registry.k8s.io
             repository: pause
             values_path: scheduling.userPlaceholder.image.tag
             version_startswith: ""
@@ -87,7 +85,7 @@ jobs:
         id: local
         run: |
           local_tag=$(cat jupyterhub/values.yaml | yq e '.${{ matrix.values_path }}' -)
-          echo "::set-output name=tag::$local_tag"
+          echo "tag=$local_tag" >> $GITHUB_OUTPUT
 
       - name: Get latest tag of ${{ matrix.registry }}/${{ matrix.repository }}
         id: latest
@@ -102,7 +100,7 @@ jobs:
               docker run --rm quay.io/skopeo/stable list-tags docker://${{ matrix.registry }}/${{ matrix.repository }} \
             | jq -r '[.Tags[] | select(. | match("^v?\\d+\\.\\d+(\\.\\d+)${{ matrix.version_patch_regexp_group_suffix }}$") | .string | startswith("${{ matrix.version_startswith }}"))] | sort_by(split(".") | map(tonumber? // (.[1:] | tonumber))) | last'
           )
-          echo "::set-output name=tag::$latest_tag"
+          echo "tag=$latest_tag" >> $GITHUB_OUTPUT
 
       - name: Update values.yaml pinned tag
         if: steps.local.outputs.tag != steps.latest.outputs.tag
@@ -116,7 +114,7 @@ jobs:
       # ref: https://github.com/peter-evans/create-pull-request
       - name: Create a PR
         if: steps.local.outputs.tag != steps.latest.outputs.tag
-        uses: peter-evans/create-pull-request@923ad837f191474af6b1721408744feb989a4c27
+        uses: peter-evans/create-pull-request@671dc9c9e0c2d73f07fa45a3eb0220e1622f0c5f
         with:
           token: "${{ secrets.jupyterhub_bot_pat }}"
           author: JupterHub Bot Account <105740858+jupyterhub-bot@users.noreply.github.com>
@@ -139,29 +137,44 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install packaging requests
 
       - name: Get images/hub/requirements.in pinned version of jupyterhub
         id: local
         run: |
           local_version=$(cat images/hub/requirements.in | grep 'jupyterhub==' | sed 's/jupyterhub==//')
-          echo "::set-output name=version::$local_version"
+          echo "version=$local_version" >> $GITHUB_OUTPUT
 
       - name: Get latest version of jupyterhub
         id: latest
+        shell: python
         run: |
-          latest_version=$(
-              curl -s https://pypi.org/pypi/jupyterhub/json \
-            | jq -r .info.version
-          )
-          echo "::set-output name=version::$latest_version"
+          import os
+          import packaging.version
+          import requests
+
+          request = requests.get("https://pypi.org/pypi/jupyterhub/json")
+          data = request.json()
+          releases = data["releases"]
+          latest_version = sorted(releases.keys(), key=packaging.version.Version)[-1]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"version={latest_version}\n")
 
       - name: Update pinned version of jupyterhub
         if: steps.local.outputs.version != steps.latest.outputs.version
         run: |
-          sed --in-place 's/jupyterhub==${{ steps.local.outputs.version }}/jupyterhub==${{ steps.latest.outputs.version }}/g' images/hub/requirements.in
-          sed --in-place 's/jupyterhub==${{ steps.local.outputs.version }}/jupyterhub==${{ steps.latest.outputs.version }}/g' images/singleuser-sample/requirements.txt
+          for img in hub singleuser-sample; do
+            sed --in-place 's/jupyterhub==${{ steps.local.outputs.version }}/jupyterhub==${{ steps.latest.outputs.version }}/g' images/$img/requirements.in
+          done
           sed --in-place 's/appVersion: "${{ steps.local.outputs.version }}"/appVersion: "${{ steps.latest.outputs.version }}"/g' jupyterhub/Chart.yaml
+
+      - name: Refreeze images/*/requirements.txt based on images/*/requirements.in
+        if: steps.local.outputs.version != steps.latest.outputs.version
+        run: ci/refreeze
 
       - name: git diff
         if: steps.local.outputs.version != steps.latest.outputs.version
@@ -170,7 +183,7 @@ jobs:
       # ref: https://github.com/peter-evans/create-pull-request
       - name: Create a PR
         if: steps.local.outputs.version != steps.latest.outputs.version
-        uses: peter-evans/create-pull-request@923ad837f191474af6b1721408744feb989a4c27
+        uses: peter-evans/create-pull-request@671dc9c9e0c2d73f07fa45a3eb0220e1622f0c5f
         with:
           token: "${{ secrets.jupyterhub_bot_pat }}"
           author: JupterHub Bot Account <105740858+jupyterhub-bot@users.noreply.github.com>
@@ -195,31 +208,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Refreeze images/hub/requirements.txt based on images/hub/requirements.in
-        # Because `pip-compile` resolves `requirements.txt` with the current
-        # Python for the current platform, it should be run on the same Python
-        # version and platform as our Dockerfile.
-        #
-        # Note that as of 2022-05-29, `pip-compile` has issues with `pycurl`,
-        # but we workaround them by by omitting the `-slim` part from the image
-        # in the command below.
-        #
-        run: |
-          cd images/hub
-          docker run --rm \
-              --env=CUSTOM_COMPILE_COMMAND='Use the "Run workflow" button at https://github.com/jupyterhub/zero-to-jupyterhub-k8s/actions/workflows/watch-dependencies.yaml' \
-              --volume=$PWD:/io \
-              --workdir=/io \
-              --user=root \
-              python:3.9-bullseye \
-              sh -c 'pip install pip-tools==6.* && pip-compile --upgrade'
+      - name: Refreeze images/*/requirements.txt based on images/*/requirements.in
+        run: ci/refreeze
 
       - name: git diff
         run: git --no-pager diff --color=always
 
       # ref: https://github.com/peter-evans/create-pull-request
       - name: Create a PR
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@671dc9c9e0c2d73f07fa45a3eb0220e1622f0c5f
         with:
           token: "${{ secrets.jupyterhub_bot_pat }}"
           author: JupyterHub Bot Account <105740858+jupyterhub-bot@users.noreply.github.com>

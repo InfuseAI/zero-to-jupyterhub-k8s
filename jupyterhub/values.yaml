@@ -26,6 +26,7 @@ imagePullSecrets: []
 # ConfigurableHTTPProxy speaks with the actual ConfigurableHTTPProxy server in
 # the proxy pod.
 hub:
+  revisionHistoryLimit:
   config:
     JupyterHub:
       admin_access: true
@@ -187,6 +188,7 @@ proxy:
   # chp relates to the proxy pod, which is responsible for routing traffic based
   # on dynamic configuration sent from JupyterHub to CHP's REST API.
   chp:
+    revisionHistoryLimit:
     containerSecurityContext:
       runAsUser: 65534 # nobody user
       runAsGroup: 65534 # nobody group
@@ -196,7 +198,7 @@ proxy:
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
-      tag: "4.5.1" # https://github.com/jupyterhub/configurable-http-proxy/releases
+      tag: "4.5.3" # https://github.com/jupyterhub/configurable-http-proxy/tags
       pullPolicy:
       pullSecrets: []
     extraCommandLineFlags: []
@@ -237,6 +239,7 @@ proxy:
   # traefik relates to the autohttps pod, which is responsible for TLS
   # termination when proxy.https.type=letsencrypt.
   traefik:
+    revisionHistoryLimit:
     containerSecurityContext:
       runAsUser: 65534 # nobody user
       runAsGroup: 65534 # nobody group
@@ -246,7 +249,7 @@ proxy:
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
-      tag: "v2.7.1" # ref: https://hub.docker.com/_/traefik?tab=tags
+      tag: "v2.9.4" # ref: https://hub.docker.com/_/traefik?tab=tags
       pullPolicy:
       pullSecrets: []
     hsts:
@@ -394,7 +397,7 @@ singleuser:
   extraResource:
     limits: {}
     guarantees: {}
-  cmd:
+  cmd: jupyterhub-singleuser
   defaultUrl:
   extraPodConfig: {}
   profileList: []
@@ -403,6 +406,7 @@ singleuser:
 scheduling:
   userScheduler:
     enabled: true
+    revisionHistoryLimit:
     replicas: 2
     logLevel: 4
     # plugins are configured on the user-scheduler to make us score how we
@@ -495,17 +499,18 @@ scheduling:
       #            - If "successfully acquired lease" can be seen in the logs, it
       #              is a good sign kube-scheduler is ready to schedule pods.
       #
-      name: k8s.gcr.io/kube-scheduler
+      name: registry.k8s.io/kube-scheduler
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow. The minor version is pinned in the
       # workflow, and should be updated there if a minor version bump is done
       # here.
       #
-      tag: "v1.23.8" # ref: https://github.com/kubernetes/website/blob/main/content/en/releases/patch-releases.md
+      tag: "v1.25.4" # ref: https://github.com/kubernetes/website/blob/main/content/en/releases/patch-releases.md
       pullPolicy:
       pullSecrets: []
     nodeSelector: {}
     tolerations: []
+    labels: {}
     annotations: {}
     pdb:
       enabled: true
@@ -526,16 +531,18 @@ scheduling:
   userPlaceholder:
     enabled: true
     image:
-      name: k8s.gcr.io/pause
+      name: registry.k8s.io/pause
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
       # If you update this, also update prePuller.pause.image.tag
       #
-      tag: "3.7"
+      tag: "3.8"
       pullPolicy:
       pullSecrets: []
+    revisionHistoryLimit:
     replicas: 0
+    labels: {}
     annotations: {}
     containerSecurityContext:
       runAsUser: 65534 # nobody user
@@ -569,6 +576,8 @@ scheduling:
 
 # prePuller relates to the hook|continuous-image-puller DaemonsSets
 prePuller:
+  revisionHistoryLimit:
+  labels: {}
   annotations: {}
   resources: {}
   containerSecurityContext:
@@ -608,13 +617,13 @@ prePuller:
       runAsGroup: 65534 # nobody group
       allowPrivilegeEscalation: false
     image:
-      name: k8s.gcr.io/pause
+      name: registry.k8s.io/pause
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
       # If you update this, also update scheduling.userPlaceholder.image.tag
       #
-      tag: "3.7"
+      tag: "3.8"
       pullPolicy:
       pullSecrets: []
 

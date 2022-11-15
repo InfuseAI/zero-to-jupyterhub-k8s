@@ -190,6 +190,15 @@ properties:
     additionalProperties: false
     required: [baseUrl]
     properties:
+      revisionHistoryLimit: &revisionHistoryLimit
+        type: [integer, "null"]
+        minimum: 0
+        description: |
+          Configures the resource's `spec.revisionHistoryLimit`. This is
+          available for Deployment, StatefulSet, and DaemonSet resources.
+
+          See the [Kubernetes docs](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#revision-history-limit)
+          for more info.
       config:
         type: object
         additionalProperties: true
@@ -1019,7 +1028,7 @@ properties:
           extraPorts:
             type: array
             description: |
-              Extra ports to add to the Hub Service object besides `hub` / `8081`.  
+              Extra ports to add to the Hub Service object besides `hub` / `8081`.
               This should be an array that includes `name`, `port`, and `targetPort`.
               See [Multi-port Services](https://kubernetes.io/docs/concepts/services-networking/service/#multi-port-services) for more details.
           loadBalancerIP:
@@ -1444,6 +1453,7 @@ properties:
           Configure the configurable-http-proxy (chp) pod managed by jupyterhub to route traffic
           both to itself and to user pods.
         properties:
+          revisionHistoryLimit: *revisionHistoryLimit
           networkPolicy: *networkPolicy-spec
           extraCommandLineFlags:
             type: array
@@ -1745,6 +1755,7 @@ properties:
         description: |
           Configure the traefik proxy used to terminate TLS when 'autohttps' is enabled
         properties:
+          revisionHistoryLimit: *revisionHistoryLimit
           labels:
             type: object
             additionalProperties: false
@@ -2124,6 +2135,10 @@ properties:
         description: |
           Passthrough configuration for
           [KubeSpawner.cmd](https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html#kubespawner.KubeSpawner.cmd).
+          The default is "jupyterhub-singleuser".
+          Use `cmd: null` to launch a custom CMD from the image,
+          which must launch jupyterhub-singleuser or an equivalent process eventually.
+          For example: Jupyter's docker-stacks images.
       defaultUrl:
         type: [string, "null"]
         description: |
@@ -2347,6 +2362,7 @@ properties:
             type: boolean
             description: |
               Enables the user scheduler.
+          revisionHistoryLimit: *revisionHistoryLimit
           replicas:
             type: integer
             description: |
@@ -2356,6 +2372,15 @@ properties:
           pdb: *pdb-spec
           nodeSelector: *nodeSelector-spec
           tolerations: *tolerations-spec
+          labels:
+            type: object
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
+            description: |
+              Extra labels to add to the userScheduler pods.
+
+              See the [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+              to learn more about labels.
           annotations:
             type: object
             additionalProperties: false
@@ -2370,7 +2395,7 @@ properties:
               kube-scheduler binary running within the user-scheduler pod.
           plugins:
             type: object
-            additionalProperties: false
+            additionalProperties: true
             description: |
               These plugins refers to kube-scheduler plugins as documented
               [here](https://kubernetes.io/docs/reference/scheduling/config/).
@@ -2378,29 +2403,6 @@ properties:
               The user-scheduler is really just a kube-scheduler configured in a
               way to pack users tight on nodes using these plugins. See
               values.yaml for information about the default plugins.
-            properties:
-              score:
-                type: object
-                additionalProperties: false
-                properties:
-                  disabled:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: false
-                      properties:
-                        name:
-                          type: string
-                  enabled:
-                    type: array
-                    items:
-                      type: object
-                      additionalProperties: false
-                      properties:
-                        name:
-                          type: string
-                        weight:
-                          type: integer
           pluginConfig:
             type: array
             description: |
@@ -2502,10 +2504,20 @@ properties:
           enabled:
             type: boolean
           image: *image-spec
+          revisionHistoryLimit: *revisionHistoryLimit
           replicas:
             type: integer
             description: |
               How many placeholder pods would you like to have?
+          labels:
+            type: object
+            additionalProperties: false
+            patternProperties: *labels-and-annotations-patternProperties
+            description: |
+              Extra labels to add to the userPlaceholder pods.
+
+              See the [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+              to learn more about labels.
           annotations:
             type: object
             additionalProperties: false
@@ -2641,7 +2653,7 @@ properties:
         description: |
           The path type to use. The default value is 'Prefix'.
 
-          See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types) 
+          See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types)
           for more details about path types.
       tls:
         type: array
@@ -2657,6 +2669,16 @@ properties:
     additionalProperties: false
     required: [hook, continuous]
     properties:
+      revisionHistoryLimit: *revisionHistoryLimit
+      labels:
+        type: object
+        additionalProperties: false
+        patternProperties: *labels-and-annotations-patternProperties
+        description: |
+          Extra labels to add to the pre puller job pods.
+
+          See the [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+          to learn more about labels.
       annotations:
         type: object
         additionalProperties: false

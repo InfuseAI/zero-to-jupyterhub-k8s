@@ -1,74 +1,68 @@
+# syntax = docker/dockerfile:1.3
+# VULN_SCAN_TIME=2022-10-31_05:34:04
+
+
 # The build stage
 # ---------------
-FROM python:3.9-bullseye as build-stage
-
-# VULN_SCAN_TIME=2022-06-27_06:14:10
-
-WORKDIR /build-stage
-
-# Build wheels for packages that require gcc or other build dependencies and
-# lack wheels either for amd64 or aarch64.
+# This stage is building Python wheels for use in later stages by using a base
+# image that has more pre-requisites to do so, such as a C++ compiler.
 #
-#   - https://pypi.org/project/pycurl/#files, no wheels available as of 7.45.1.
-#     See https://github.com/pycurl/pycurl/issues/738.
-#   - https://pypi.org/project/ruamel.yaml.clib/#files, no aarch64 wheels
-#     available as of 0.2.6. See
-#     https://sourceforge.net/p/ruamel-yaml-clib/tickets/4/.
+FROM python:3.11-bullseye as build-stage
+
+# Build wheels
 #
-# If you find a dependency here no longer listed in requirements.txt, remove it
-# from here as well. The more wheels we build here and copy and then install,
-# where the copy and install are separate steps, the larger the final image
-# becomes.
+# We set pip's cache directory and expose it across build stages via an
+# ephemeral docker cache (--mount=type=cache,target=${PIP_CACHE_DIR}).
 #
 COPY requirements.txt requirements.txt
-RUN pip install build \
+ARG PIP_CACHE_DIR=/tmp/pip-cache
+RUN --mount=type=cache,target=${PIP_CACHE_DIR} \
+    pip install build \
  && pip wheel \
-        $(cat requirements.txt | grep "pycurl==") \
-        $(cat requirements.txt | grep "ruamel-yaml-clib==")
+        --wheel-dir=/tmp/wheels \
+        -r requirements.txt \
+        # Additional wheels for default-stage. Updates below should be repeated
+        # in default-stage.
+        #
+        py-spy
 
 
-# The final stage
-# ---------------
-FROM python:3.9-slim-bullseye
+# The final stage - slim version
+# ------------------------------
+# This stage is built and published as jupyterhub/k8s-hub-slim. It is meant to
+# provide no non-essential packages.
+#
+FROM python:3.11-slim-bullseye as slim-stage
+ENV DEBIAN_FRONTEND=noninteractive
 
-ARG NB_USER=jovyan
-ARG NB_UID=1000
-ARG HOME=/home/jovyan
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8
-
-RUN adduser --disabled-password \
+ARG NB_USER=jovyan \
+    NB_UID=1000 \
+    HOME=/home/jovyan
+RUN adduser \
+        --disabled-password \
         --gecos "Default user" \
         --uid ${NB_UID} \
         --home ${HOME} \
         --force-badname \
         ${NB_USER}
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
-        # misc network utilities
-        curl \
-        dnsutils \
-        git \
-        # misc other utilities
-        less \
-        vim \
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y --no-install-recommends \
         # requirement for pycurl
         libcurl4 \
         # requirement for using a local sqlite database
         sqlite3 \
+        tini \
  && rm -rf /var/lib/apt/lists/*
 
-RUN if [ "$(uname -m)" = x86_64 ]; then ARCH=amd64; fi; \
-    if [ "$(uname -m)" = aarch64 ]; then ARCH=arm64; fi; \
-    curl -sSLo /tini "https://github.com/krallin/tini/releases/download/v0.19.0/tini-$ARCH" \
- && chmod +x /tini
-
-COPY --from=build-stage /build-stage/*.whl /tmp/pre-built-wheels/
+# install wheels built in the build-stage
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir \
-        /tmp/pre-built-wheels/*.whl \
+ARG PIP_CACHE_DIR=/tmp/pip-cache
+RUN --mount=type=cache,target=${PIP_CACHE_DIR} \
+    --mount=type=cache,from=build-stage,source=/tmp/wheels,target=/tmp/wheels \
+    pip install \
+        --find-links=/tmp/wheels/ \
         -r /tmp/requirements.txt
 
 WORKDIR /srv/jupyterhub
@@ -76,5 +70,36 @@ RUN chown ${NB_USER}:${NB_USER} /srv/jupyterhub
 USER ${NB_USER}
 
 EXPOSE 8081
-ENTRYPOINT ["/tini", "--"]
+ENTRYPOINT ["tini", "--"]
 CMD ["jupyterhub", "--config", "/usr/local/etc/jupyterhub/jupyterhub_config.py"]
+
+
+# The final stage - default version
+# ---------------------------------
+# We add a few non-critical packages on top of the slim version to provide some
+# additional utility.
+#
+FROM slim-stage as default-stage
+
+USER root
+
+ARG PIP_CACHE_DIR=/tmp/pip-cache
+RUN --mount=type=cache,target=${PIP_CACHE_DIR} \
+    --mount=type=cache,from=build-stage,source=/tmp/wheels,target=/tmp/wheels \
+    pip install \
+        --find-links=/tmp/wheels/ \
+        # Updates below should be repeated in build-stage.
+        #
+        # py-spy is useful for profiling performance of running hubs
+        py-spy
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        curl \
+        dnsutils \
+        git \
+        less \
+        vim \
+ && rm -rf /var/lib/apt/lists/*
+
+USER ${NB_USER}
